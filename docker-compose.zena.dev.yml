@@ -14,7 +14,7 @@ services:
       - -c
       - shared_preload_libraries=vector
     volumes:
-      - aegra-data:/var/lib/postgresql/data
+      - aegra-data:/var/lib/postgresql
     healthcheck:
       test: pg_isready -U ${AEGRA_POSTGRES_USER}
       start_period: 10s
@@ -27,8 +27,8 @@ services:
 
   aegra-api:
     build:
-      context: .
-      dockerfile: deployments/docker/Dockerfile
+      context: ..
+      dockerfile: aegra/Dockerfile.zena
     image: "zena_aegra_api:${ENV}"
     labels:
       logging: "loki"
@@ -52,6 +52,8 @@ services:
     volumes:
       - ../langgraph:/deps/langgraph:ro
       - ./aegra.zena.json:/app/aegra.zena.json:ro
+      - ./zena_graphs.py:/app/zena_graphs.py:ro
+    command: ["uvicorn", "aegra_api.main:app", "--host", "0.0.0.0", "--port", "2026"]
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:2026/health || exit 1"]
       interval: 60s
@@ -78,7 +80,7 @@ services:
     command:
       - http
       - aegra-cors-proxy:8080
-      - --domain=${AEGRA_NGROK_DOMAIN}
+      - --url=https://${AEGRA_NGROK_DOMAIN}
     environment:
       NGROK_AUTHTOKEN: ${AEGRA_NGROK_AUTHTOKEN}
     depends_on:
