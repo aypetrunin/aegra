@@ -7,7 +7,7 @@ Fork of [ibbybuilds/aegra](https://github.com/ibbybuilds/aegra). Upstream files 
 | File | Purpose |
 |------|---------|
 | `aegra.zena.json` | Graph registry for 9 zena agents. Mounted at `/app/aegra.zena.json`; selected via `AEGRA_CONFIG` env var. |
-| `docker-compose.zena.dev.yml` | Dev compose overlay. Brings up `aegra-postgres`, `aegra-api` (with `../langgraph` mounted as graph code), `aegra-cors-proxy` (nginx), `aegra-cloudflared` (tunnel to Studio). No Redis — uses in-process executor (`REDIS_BROKER_ENABLED=false`) per upstream dev-mode guidance. |
+| `docker-compose.zena.dev.yml` | Dev compose overlay. Brings up `aegra-postgres`, `aegra-api` (with `../langgraph` mounted as graph code), `aegra-cors-proxy` (nginx), `aegra-ngrok` (tunnel to Studio, free tier with reserved domain). No Redis — uses in-process executor (`REDIS_BROKER_ENABLED=false`) per upstream dev-mode guidance. |
 | `nginx-zena-dev.conf` | CORS proxy config; allowlists `smith.langchain.com` and `localhost:3001` (Agent Chat UI). |
 
 ## How to pull upstream
@@ -31,7 +31,7 @@ Root `docker-compose.dev.yml` includes `aegra/docker-compose.zena.dev.yml`.
 
 External access:
 - `http://localhost:${AEGRA_API_PORT}` — via local nginx CORS proxy.
-- `https://${AEGRA_PUBLIC_URL}` — via Cloudflare tunnel (used by LangGraph Studio at smith.langchain.com).
+- `https://${AEGRA_NGROK_DOMAIN}` — via ngrok tunnel (used by LangGraph Studio at smith.langchain.com). Free plan: one reserved static domain (`*.ngrok-free.app`).
 
 Internal (inside docker network): `http://aegra-api:2026`.
 
@@ -45,5 +45,5 @@ Apifast switches to aegra by setting `LANGGRAPH_URL_DOCKER=http://aegra-api:2026
 | `AEGRA_DATABASE_URL` | Passed into container as `DATABASE_URL` |
 | `AEGRA_AUTH_TYPE` | Passed as `AUTH_TYPE` (noop or custom) |
 | `AEGRA_POSTGRES_DB/USER/PASSWORD` | aegra-postgres bootstrap |
-| `AEGRA_CLOUDFLARE_TUNNEL_TOKEN` | Cloudflare tunnel authentication |
-| `AEGRA_PUBLIC_URL` | For reference — the tunnel's public hostname |
+| `AEGRA_NGROK_AUTHTOKEN` | ngrok authentication token (from dashboard.ngrok.com → Your Authtoken) |
+| `AEGRA_NGROK_DOMAIN` | Reserved static domain from ngrok free plan (e.g. `zena-aegra.ngrok-free.app`) |

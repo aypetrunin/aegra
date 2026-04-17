@@ -73,11 +73,14 @@ services:
     networks:
       - zena-network
 
-  aegra-cloudflared:
-    image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate run
+  aegra-ngrok:
+    image: ngrok/ngrok:alpine
+    command:
+      - http
+      - aegra-cors-proxy:8080
+      - --domain=${AEGRA_NGROK_DOMAIN}
     environment:
-      TUNNEL_TOKEN: ${AEGRA_CLOUDFLARE_TUNNEL_TOKEN}
+      NGROK_AUTHTOKEN: ${AEGRA_NGROK_AUTHTOKEN}
     depends_on:
       - aegra-cors-proxy
     restart: unless-stopped
