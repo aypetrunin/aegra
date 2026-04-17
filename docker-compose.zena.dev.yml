@@ -1,0 +1,89 @@
+volumes:
+  aegra-data:
+    driver: local
+
+services:
+  aegra-postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB:       ${AEGRA_POSTGRES_DB}
+      POSTGRES_USER:     ${AEGRA_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${AEGRA_POSTGRES_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=vector
+    volumes:
+      - aegra-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ${AEGRA_POSTGRES_USER}
+      start_period: 10s
+      timeout: 1s
+      retries: 5
+      interval: 60s
+      start_interval: 1s
+    networks:
+      - zena-network
+
+  aegra-api:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile
+    image: "zena_aegra_api:${ENV}"
+    labels:
+      logging: "loki"
+    expose:
+      - "2026"
+    depends_on:
+      aegra-postgres:
+        condition: service_healthy
+      mcpsrv:
+        condition: service_healthy
+    env_file:
+      - ../deploy/dev.env
+    environment:
+      DATABASE_URL: ${AEGRA_DATABASE_URL}
+      AUTH_TYPE: ${AEGRA_AUTH_TYPE}
+      HOST: "0.0.0.0"
+      PORT: "2026"
+      REDIS_BROKER_ENABLED: "false"
+      AEGRA_CONFIG: "/app/aegra.zena.json"
+      PYTHONPATH: "/app/src:/deps/langgraph"
+    volumes:
+      - ../langgraph:/deps/langgraph:ro
+      - ./aegra.zena.json:/app/aegra.zena.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:2026/health || exit 1"]
+      interval: 60s
+      start_interval: 1s
+      start_period: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - zena-network
+
+  aegra-cors-proxy:
+    image: nginx:alpine
+    depends_on:
+      - aegra-api
+    ports:
+      - "${AEGRA_API_PORT}:8080"
+    volumes:
+      - ./nginx-zena-dev.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - zena-network
+
+  aegra-cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${AEGRA_CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - aegra-cors-proxy
+    restart: unless-stopped
+    networks:
+      - zena-network
+
+networks:
+  zena-network:
+    external: true
