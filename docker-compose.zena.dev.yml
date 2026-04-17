@@ -39,6 +39,8 @@ services:
         condition: service_healthy
       mcpsrv:
         condition: service_healthy
+      langgraph-redis:
+        condition: service_healthy
     env_file:
       - ../deploy/dev.env
     environment:
@@ -49,6 +51,10 @@ services:
       REDIS_BROKER_ENABLED: "false"
       AEGRA_CONFIG: "/app/aegra.zena.json"
       PYTHONPATH: "/app/src:/deps/langgraph"
+      # zena-graph expects these to detect docker-mode resolution for
+      # internal services (Redis master-cache, MCP addressing).
+      IS_DOCKER: "1"
+      REDIS_URI: "redis://langgraph-redis:6379"
     volumes:
       - ../langgraph:/deps/langgraph:ro
       - ./aegra.zena.json:/app/aegra.zena.json:ro

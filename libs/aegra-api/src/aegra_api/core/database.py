@@ -2,6 +2,7 @@
 
 import structlog
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.store.postgres.aio import AsyncPostgresStore
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
@@ -69,7 +70,13 @@ class DatabaseManager:
 
         logger.info(f"Initializing LangGraph components with shared pool (max {lg_max} conns)...")
 
-        self._checkpointer = AsyncPostgresSaver(conn=self.lg_pool)
+        # Enable pickle_fallback: zena graph state carries a few types (e.g. bare
+        # `object` sentinels in middleware) that msgpack can't encode. Licensed
+        # langgraph-api enables this by default; aegra did not — match behavior.
+        self._checkpointer = AsyncPostgresSaver(
+            conn=self.lg_pool,
+            serde=JsonPlusSerializer(pickle_fallback=True),
+        )
         await self._checkpointer.setup()  # Ensure tables exist
 
         # Load store configuration for semantic search (if configured)
